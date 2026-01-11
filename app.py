@@ -1,5 +1,5 @@
-import streamlit as st
 import pandas as pd
+import streamlit as st
 import plotly.express as px
 
 from db import init_db, upsert_default_admin, get_conn, replace_week_data
@@ -67,26 +67,32 @@ def dashboard():
 
 def update_data(user):
     st.title("Update Data")
+
     if user["role"] not in ["admin", "editor"]:
         st.error("ليس لديك صلاحية.")
         return
 
-    file = st.file_uploader("ارفع Excel", type=["xlsx"])
+    # 1) رفع الملف
+    file = st.file_uploader("ارفع ملف Excel", type=["xlsx"])
+
+    # 2) إدخال تاريخ الأسبوع
     week_date = st.text_input("week_date (مثال: 2026-01-11)")
 
     if not file:
+        st.info("ارفعي ملف الإكسل أولًا.")
         return
 
-    # اختيار الشيت
+    # 3) اختيار الشيت
     xls = pd.ExcelFile(file)
     sheet = st.selectbox("اختاري الشيت اللي فيه البيانات", xls.sheet_names)
     df_raw = pd.read_excel(xls, sheet_name=sheet)
 
     if df_raw.empty:
-        st.error("الشيت فاضي.")
+        st.error("الشيت المختار فاضي.")
         return
 
-    st.caption("اختاري من القوائم: أي عمود في ملفك يمثل كل حقل (مرة واحدة).")
+    # 4) تعيين الأعمدة
+    st.caption("اختاري من القوائم: أي عمود يمثل كل حقل")
     cols = ["(لا يوجد)"] + df_raw.columns.tolist()
 
     c1, c2, c3 = st.columns(3)
@@ -101,10 +107,10 @@ def update_data(user):
         col_progress = st.selectbox("عمود نسبة الإنجاز", cols)
 
     if not week_date:
-        st.info("اكتبي week_date ثم كمّلي.")
+        st.warning("رجاءً اكتبي week_date قبل الحفظ.")
         return
 
-    # تحقق أن كل الاختيارات موجودة
+    # 5) التحقق من التعيين
     selected = {
         "municipality": col_municipality,
         "entity": col_entity,
@@ -113,12 +119,13 @@ def update_data(user):
         "budget": col_budget,
         "progress": col_progress,
     }
-    missing_map = [k for k, v in selected.items() if v == "(لا يوجد)"]
-    if missing_map:
-        st.error(f"اختاري الأعمدة الناقصة: {missing_map}")
+
+    missing = [k for k, v in selected.items() if v == "(لا يوجد)"]
+    if missing:
+        st.error(f"اختاري الأعمدة الناقصة: {missing}")
         return
 
-    # بناء الداتا النهائية بالأسماء القياسية اللي عندنا
+    # 6) بناء الداتا النهائية
     df = pd.DataFrame({
         "municipality": df_raw[selected["municipality"]],
         "entity": df_raw[selected["entity"]],
@@ -128,11 +135,19 @@ def update_data(user):
         "progress": df_raw[selected["progress"]],
     })
 
-    # تنظيف وتحويل أنواع
-# تنظيف وتحويل أنواع
-df["week_date"] = week_date
-df["budget"] = pd.to_numeric(df["budget"], errors="coerce")
-df["progress"] = pd.to_numeric(df["progress"], errors="coerce")
+    # 7) إضافة week_date + تنظيف
+    df["week_date"] = week_date
+    df["budget"] = pd.to_numeric(df["budget"], errors="coerce")
+    df["progress"] = pd.to_numeric(df["progress"], errors="coerce")
+
+    # 8) معاينة
+    st.subheader("معاينة البيانات قبل الحفظ")
+    st.dataframe(df.head(30), use_container_width=True, hide_index=True)
+
+    # 9) حفظ
+    if st.button("حفظ وتحديث بيانات هذا الأسبوع"):
+        replace_week_data(df, week_date)
+        st.success("تم تحديث البيانات بنجاح ✅")
 
 
 def users_admin(user):
