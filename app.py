@@ -71,25 +71,68 @@ def update_data(user):
         st.error("ليس لديك صلاحية.")
         return
 
-    file = st.file_uploader("ارفع Excel (Sheet اسمها Data)", type=["xlsx"])
+    file = st.file_uploader("ارفع Excel", type=["xlsx"])
     week_date = st.text_input("week_date (مثال: 2026-01-11)")
 
-    if file and week_date:
-        df = pd.read_excel(file, sheet_name="Data")
+    if not file:
+        return
 
-        expected = ["municipality", "entity", "project", "status", "budget", "progress"]
-        missing = [c for c in expected if c not in df.columns]
-        if missing:
-            st.error(f"أعمدة ناقصة: {missing}")
-            return
+    # اختيار الشيت
+    xls = pd.ExcelFile(file)
+    sheet = st.selectbox("اختاري الشيت اللي فيه البيانات", xls.sheet_names)
+    df_raw = pd.read_excel(xls, sheet_name=sheet)
 
-        df = df[expected].copy()
-        df["week_date"] = week_date
-        df["budget"] = pd.to_numeric(df["budget"], errors="coerce")
-        df["progress"] = pd.to_numeric(df["progress"], errors="coerce")
+    if df_raw.empty:
+        st.error("الشيت فاضي.")
+        return
 
-        replace_week_data(df, week_date)
-        st.success("تم التحديث ✅")
+    st.caption("اختاري من القوائم: أي عمود في ملفك يمثل كل حقل (مرة واحدة).")
+    cols = ["(لا يوجد)"] + df_raw.columns.tolist()
+
+    c1, c2, c3 = st.columns(3)
+    with c1:
+        col_municipality = st.selectbox("عمود البلدية", cols)
+        col_entity = st.selectbox("عمود الجهة", cols)
+    with c2:
+        col_project = st.selectbox("عمود المشروع", cols)
+        col_status = st.selectbox("عمود الحالة", cols)
+    with c3:
+        col_budget = st.selectbox("عمود الميزانية", cols)
+        col_progress = st.selectbox("عمود نسبة الإنجاز", cols)
+
+    if not week_date:
+        st.info("اكتبي week_date ثم كمّلي.")
+        return
+
+    # تحقق أن كل الاختيارات موجودة
+    selected = {
+        "municipality": col_municipality,
+        "entity": col_entity,
+        "project": col_project,
+        "status": col_status,
+        "budget": col_budget,
+        "progress": col_progress,
+    }
+    missing_map = [k for k, v in selected.items() if v == "(لا يوجد)"]
+    if missing_map:
+        st.error(f"اختاري الأعمدة الناقصة: {missing_map}")
+        return
+
+    # بناء الداتا النهائية بالأسماء القياسية اللي عندنا
+    df = pd.DataFrame({
+        "municipality": df_raw[selected["municipality"]],
+        "entity": df_raw[selected["entity"]],
+        "project": df_raw[selected["project"]],
+        "status": df_raw[selected["status"]],
+        "budget": df_raw[selected["budget"]],
+        "progress": df_raw[selected["progress"]],
+    })
+
+    # تنظيف وتحويل أنواع
+    df["week_date"] = week_date
+    df["budget"] = pd.to_numeric(df["budget"], errors="coerce")
+    df["progress"] = pd.to_numeric(df["progress"], errors_
+
 
 def users_admin(user):
     st.title("Users (Admin)")
