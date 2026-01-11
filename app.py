@@ -129,9 +129,10 @@ def update_data(user):
     })
 
     # تنظيف وتحويل أنواع
-    df["week_date"] = week_date
-    df["budget"] = pd.to_numeric(df["budget"], errors="coerce")
-    df["progress"] = pd.to_numeric(df["progress"], errors_
+# تنظيف وتحويل أنواع
+df["week_date"] = week_date
+df["budget"] = pd.to_numeric(df["budget"], errors="coerce")
+df["progress"] = pd.to_numeric(df["progress"], errors="coerce")
 
 
 def users_admin(user):
