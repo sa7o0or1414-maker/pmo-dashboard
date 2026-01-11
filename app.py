@@ -63,7 +63,35 @@ def dashboard():
         st.plotly_chart(px.bar(b, x="municipality", y="budget"), use_container_width=True)
 
     st.subheader("تفاصيل")
-    st.dataframe(fdf.drop(columns=["id"], errors="ignore"), use_container_width=True, hide_index=True)
+   def color_status(row):
+    status = str(row["status"]).strip()
+
+    if status == "متأخر":
+        return ["background-color: #fde2e2"] * len(row)   # أحمر فاتح
+    elif status == "منتظم":
+        return ["background-color: #e6f4ea"] * len(row)   # أخضر فاتح
+    elif status == "متقدم":
+        return ["background-color: #e8f0fe"] * len(row)   # أزرق فاتح
+    elif status == "متعثر":
+        return ["background-color: #fff4e5"] * len(row)   # برتقالي فاتح
+    elif status == "متوقف":
+        return ["background-color: #eeeeee"] * len(row)   # رمادي
+    else:
+        return [""] * len(row)
+
+
+styled_df = (
+    fdf
+    .drop(columns=["id"], errors="ignore")
+    .style
+    .apply(color_status, axis=1)
+)
+
+st.dataframe(
+    styled_df,
+    use_container_width=True,
+    hide_index=True
+)
 
 def update_data(user):
     st.title("Update Data")
